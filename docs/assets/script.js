@@ -281,6 +281,7 @@ function initPageExamples() {
   initVirtualSelect({
     ele: '#with-image-select',
     labelRenderer: sampleLabelRenderer,
+    selectedLabelRenderer: sampleLabelRenderer,
   });
 
   initVirtualSelect({
@@ -350,5 +351,14 @@ function initPageExamples() {
       // eslint-disable-next-line no-alert
       alert('Form submitted');
     }
+  });
+
+  initVirtualSelect({
+    ele: '#custom-styling-select',
+    multiple: true,
+    additionalClasses: 'custom-wrapper',
+    additionalDropboxClasses: 'custom-dropbox',
+    additionalDropboxContainerClasses: 'custom-dropbox-container',
+    additionalToggleButtonClasses: 'custom-toggle-button',
   });
 }

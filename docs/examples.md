@@ -25,6 +25,7 @@
 - [Right-to-Left text](#right-to-left-text)
 - [Disable/Enable](#disable-enable)
 - [Validation](#validation)
+- [Custom styling](#custom-styling)
 
 ## Default dropdown
 
@@ -305,7 +306,8 @@ VirtualSelect.init({
 
 ## Add image/icon
 
-Use `labelRenderer` callback function to add image, icon, or custom content
+Use `labelRenderer` callback function to add image, icon, or custom content to items
+Use `selectedLabelRenderer` callback function to add image, icon, or custom content to selected item
 
 <div id="with-image-select"></div>
 
@@ -313,6 +315,7 @@ Use `labelRenderer` callback function to add image, icon, or custom content
 VirtualSelect.init({
   ...
   labelRenderer: sampleLabelRenderer,
+  selectedLabelRenderer: sampleLabelRenderer
 });
 
 function sampleLabelRenderer(data) {
@@ -403,6 +406,21 @@ document.querySelector('#sample-form').addEventListener('submit', function() {
   if (VirtualSelect.validate(this)) {
     alert('Form submitted');
   }
+});
+```
+## Custom styling
+
+Use `additionalClasses`, `additionalDropboxClasses`, `additionalDropboxContainerClasses` and `additionalToggleButtonClasses` to customize the styling of your dropdown
+
+<div id="custom-styling-select"></div>
+
+```js
+VirtualSelect.init({
+  ...
+  additionalClasses: 'custom-wrapper',
+  additionalDropboxClasses: 'custom-dropbox',
+  additionalDropboxContainerClasses: 'custom-dropbox-container',
+  additionalToggleButtonClasses: 'custom-toggle-button',
 });
 ```
 
