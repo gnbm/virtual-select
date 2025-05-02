@@ -730,7 +730,9 @@ export class VirtualSelect {
   }
 
   removeMutationObserver() {
-    this.mutationObserver.disconnect();
+    if (this.hasDropboxWrapper) {
+      this.mutationObserver.disconnect();
+    }
   }
 
   /** dom event methods - end */
@@ -2346,6 +2348,14 @@ export class VirtualSelect {
   }
 
   openDropbox(isSilent) {
+    let originalTransition = '';
+    // Disable transitions for programmatic opening
+    if (!isSilent) {
+      // Store original transition
+      originalTransition = this.$dropboxContainer.style.transition;
+      this.$dropboxContainer.style.transition = 'none';
+    }
+    // Perform the open operation
     this.isSilentOpen = isSilent;
 
     DomUtils.setAttr(this.$dropboxWrapper, 'tabindex', '0');
@@ -2365,9 +2375,16 @@ export class VirtualSelect {
     }
 
     this.setDropboxWrapperWidth();
-
     DomUtils.removeClass(this.$allWrappers, 'closed');
     DomUtils.changeTabIndex(this.$allWrappers, 0);
+
+    if (!isSilent) {
+      // Force synchronous layout and style calculation
+      // Trigger reflow
+      this.$dropboxContainer.offsetHeight; // eslint-disable-line no-unused-expressions
+      // Restore transitions immediately after reflow
+      this.$dropboxContainer.style.transition = originalTransition;
+    }
 
     if (this.dropboxPopover && !isSilent) {
       this.dropboxPopover.show();
