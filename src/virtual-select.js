@@ -547,7 +547,11 @@ export class VirtualSelect {
     // Handle the Escape key when showing the dropdown as a popup, closing it
     if (key === 27 || e.key === 'Escape') {
       const wrapper = this.showAsPopup ? this.$wrapper : this.$dropboxWrapper;
-      if ((document.activeElement === wrapper || wrapper.contains(document.activeElement)) && !this.keepAlwaysOpen) {
+      if (
+        wrapper &&
+        (document.activeElement === wrapper || wrapper.contains(document.activeElement)) &&
+        !this.keepAlwaysOpen
+      ) {
         this.closeDropbox();
         return;
       }
@@ -1134,7 +1138,8 @@ export class VirtualSelect {
     const valuesOrder = {};
     let validValues = [];
     const isMultiSelect = this.multiple;
-    let value = newValue;
+    // Normalize input value first
+    let value = Utils.normalizeValues(newValue);
 
     if (value) {
       if (!Array.isArray(value)) {
@@ -1151,9 +1156,6 @@ export class VirtualSelect {
         value = [value[0]];
       }
 
-      /** converting value to string */
-      value = value.map((v) => (v || v === 0 ? v.toString() : ''));
-
       if (this.useGroupValue) {
         value = this.setGroupOptionsValue(value);
       }
@@ -1169,9 +1171,12 @@ export class VirtualSelect {
     }
 
     this.options.forEach((d) => {
-      if (valuesMapping[d.value] === true && !d.isDisabled && !d.isGroupTitle) {
+      // Compare with normalized option values
+      const normalizedOptionValue = Utils.normalizeValues(d.value);
+      if (valuesMapping[normalizedOptionValue] === true && !d.isDisabled && !d.isGroupTitle) {
         // eslint-disable-next-line no-param-reassign
         d.isSelected = true;
+        // Store original value but compare with normalized value
         validValues.push(d.value);
       } else {
         // eslint-disable-next-line no-param-reassign
@@ -1185,7 +1190,7 @@ export class VirtualSelect {
       }
 
       /** sorting validValues in the given values order */
-      validValues.sort((a, b) => valuesOrder[a] - valuesOrder[b]);
+      validValues.sort((a, b) => valuesOrder[Utils.normalizeValues(a)] - valuesOrder[Utils.normalizeValues(b)]);
     } else {
       /** taking first value for single select */
       [validValues] = validValues;
@@ -1564,14 +1569,16 @@ export class VirtualSelect {
   }
 
   setValue(value, { disableEvent = false, disableValidation = false } = {}) {
-    const isValidValue = (this.hasEmptyValueOption && value === '') || value;
+    // Normalize input value first
+    const normalizedValue = Utils.normalizeValues(value);
+    const isValidValue = (this.hasEmptyValueOption && normalizedValue === '') || normalizedValue;
 
     if (!isValidValue) {
       this.selectedValues = [];
-    } else if (Array.isArray(value)) {
-      this.selectedValues = [...value];
+    } else if (Array.isArray(normalizedValue)) {
+      this.selectedValues = [...normalizedValue];
     } else {
-      this.selectedValues = [value];
+      this.selectedValues = [normalizedValue];
     }
 
     const newValue = this.getValue();
@@ -2033,16 +2040,12 @@ export class VirtualSelect {
     let value;
 
     if (this.multiple) {
-      if (this.useGroupValue) {
-        value = this.getGroupValue();
-      } else {
-        value = this.selectedValues;
-      }
+      value = this.useGroupValue ? this.getGroupValue() : this.selectedValues;
     } else {
       value = this.selectedValues[0] || '';
     }
 
-    return value;
+    return Utils.normalizeValues(value);
   }
 
   getGroupValue() {
