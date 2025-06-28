@@ -635,31 +635,52 @@ describe('Validation', () => {
   });
 });
 
-
-
 // // // // //
-// // // // // Event page
+// // // // // Events page
 // // // // //
 
-describe('Open page', () => {
-  it('opened', () => {
-    cy.visit('events');
-  });
-});
+describe('To verify that the change event is not fired twice when selecting items after a search', () => {
 
-describe('To verify that the change event is not fired twice when selecting items via the search input', () => {
-  const selid = 'select-onchange';
-  const resid = 'select-onchange-results';
+  const id = 'sample-select-onchange';
+  const resId = 'sample-select-changes';
 
   it('go to section', () => {
-    cy.goToSection('On change');
+    cy.goToSection('Events');
   });
 
-  it('select 2 in row', () => {
-    cy.open(selid).find('.vscomp-option').first().click();
-    cy.get(`#${resid}`).should('have.text', 'value = 1; count of changes = 1');
-    cy.open(selid).search('123').find('.vscomp-option').first().click();
-    cy.get(`#${resid}`).should('have.text', 'value = 123; count of changes = 2');
+  it('select Option 1', () => {
+    cy.open(id).selectOption(1).hasValueText('Option 1');
+    cy.get(`#${resId}`).should('have.text', 'Selected = 1 | No.changes = 1');
+  });
+
+  it('search and select 123', () => {
+    cy.open(id).search('123').selectOption(123).hasValueText('Option 123');
+    cy.get(`#${resId}`).should('have.text', 'Selected = 123 | No.changes = 2');
+  });
+
+});
+
+
+describe('To verify that the reset event is fired', () => {
+
+  const id = 'sample-select-reset';
+  const resId = 'select-reset-res';
+
+  it('go to section', () => {
+    cy.goToSection('Events');
+  });
+
+  it('select Option 1', () => {
+    cy.open(id).selectOption(1).hasValueText('Option 1');
+  });
+
+  it('check clear button exist', () => {
+    cy.getVs(id).checkClearButton(true);
+  });
+
+  it('reset value', () => {
+    cy.resetValue(id);
+    cy.get(`#${resId}`).should('have.text', 'reset event triggered');
   });
 
 });
