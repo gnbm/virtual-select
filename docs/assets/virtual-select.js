@@ -1,5 +1,5 @@
 /*!
- * Virtual Select v1.0.49
+ * Virtual Select v1.1.0
  * https://sa-si-dev.github.io/virtual-select
  * Licensed under MIT (https://github.com/sa-si-dev/virtual-select/blob/master/LICENSE)
  *//******/ (function() { // webpackBootstrap
@@ -829,6 +829,7 @@ var VirtualSelect = /*#__PURE__*/function () {
     key: "renderOptions",
     value: function renderOptions() {
       var _this = this;
+      var isRenderingdOnScroll = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
       var html = '';
       var visibleOptions = this.getVisibleOptions();
       var checkboxHtml = '';
@@ -917,7 +918,7 @@ var VirtualSelect = /*#__PURE__*/function () {
       groupName = '';
       this.$options.innerHTML = html;
       this.$visibleOptions = this.$options.querySelectorAll('.vscomp-option');
-      this.afterRenderOptions();
+      this.afterRenderOptions(isRenderingdOnScroll);
     }
   }, {
     key: "renderSearch",
@@ -1142,7 +1143,7 @@ var VirtualSelect = /*#__PURE__*/function () {
   }, {
     key: "onOptionsScroll",
     value: function onOptionsScroll() {
-      this.setVisibleOptions();
+      this.setVisibleOptions(true);
     }
   }, {
     key: "onOptionsClick",
@@ -1335,6 +1336,7 @@ var VirtualSelect = /*#__PURE__*/function () {
   }, {
     key: "afterRenderOptions",
     value: function afterRenderOptions() {
+      var hasRenderedOnScroll = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
       var visibleOptions = this.getVisibleOptions();
       var hasNoOptions = !this.options.length && !this.hasServerSearch;
       var hasNoSearchResults = !hasNoOptions && !visibleOptions.length;
@@ -1359,7 +1361,7 @@ var VirtualSelect = /*#__PURE__*/function () {
       this.setOptionAttr();
       this.setOptionsPosition();
       this.setOptionsTooltip();
-      if (document.activeElement !== this.$searchInput) {
+      if (document.activeElement !== this.$searchInput && hasRenderedOnScroll === false) {
         var focusedOption = DomUtils.getElementsBySelector('.focused', this.$dropboxContainer)[0];
         if (focusedOption !== undefined) {
           focusedOption.focus();
@@ -2015,6 +2017,7 @@ var VirtualSelect = /*#__PURE__*/function () {
   }, {
     key: "setVisibleOptions",
     value: function setVisibleOptions() {
+      var isOnScrollUpdating = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
       var visibleOptions = virtual_select_toConsumableArray(this.sortedOptions);
       var maxOptionsToShow = this.optionsCount * 2;
       var startIndex = this.getVisibleStartIndex();
@@ -2041,7 +2044,7 @@ var VirtualSelect = /*#__PURE__*/function () {
       this.visibleOptions = visibleOptions;
       // update number of visible options
       this.visibleOptionsCount = visibleOptions.length;
-      this.renderOptions();
+      this.renderOptions(isOnScrollUpdating);
     }
   }, {
     key: "setOptionsPosition",
