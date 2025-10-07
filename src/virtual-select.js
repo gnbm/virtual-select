@@ -286,7 +286,7 @@ export class VirtualSelect {
     return html;
   }
 
-  renderOptions(isRenderingdOnScroll = false) {
+  renderOptions() {
     let html = '';
     const visibleOptions = this.getVisibleOptions();
     let checkboxHtml = '';
@@ -403,7 +403,7 @@ export class VirtualSelect {
     this.$options.innerHTML = html;
     this.$visibleOptions = this.$options.querySelectorAll('.vscomp-option');
 
-    this.afterRenderOptions(isRenderingdOnScroll);
+    this.afterRenderOptions();
   }
 
   renderSearch() {
@@ -504,6 +504,26 @@ export class VirtualSelect {
     this.removeEvent(this.$options, 'click', 'onOptionsClick');
     this.removeEvent(this.$options, 'mouseover', 'onOptionsMouseOver');
     this.removeEvent(this.$options, 'touchmove', 'onOptionsTouchMove');
+
+    // Remove search-related events that are added in renderSearch()
+    if (this.$searchInput) {
+      this.removeEvent(this.$searchInput, 'input', 'onSearch');
+      this.removeEvent(this.$searchInput, 'change', 'preventPropagation');
+      if (this.$searchClear) {
+        this.removeEvent(this.$searchClear, 'click', 'onSearchClear');
+        this.removeEvent(this.$searchClear, 'keydown', 'onSearchClear');
+      }
+    }
+    if (this.$toggleAllButton) {
+      this.removeEvent(this.$toggleAllButton, 'click', 'onToggleAllOptions');
+    }
+    if (this.$dropboxContainerBottom) {
+      this.removeEvent(this.$dropboxContainerBottom, 'focus', 'onDropboxContainerTopOrBottomFocus');
+    }
+    if (this.$dropboxContainerTop) {
+      this.removeEvent(this.$dropboxContainerTop, 'focus', 'onDropboxContainerTopOrBottomFocus');
+    }
+
     this.removeMutationObserver();
   }
 
@@ -590,6 +610,10 @@ export class VirtualSelect {
   }
 
   onDownArrowPress(e) {
+    // Allow default behavior (cursor movement) when search input is focused
+    if (document.activeElement === this.$searchInput) {
+      return;
+    }
     e.preventDefault();
 
     if (this.isOpened()) {
@@ -600,6 +624,10 @@ export class VirtualSelect {
   }
 
   onUpArrowPress(e) {
+    // Allow default behavior (cursor movement) when search input is focused
+    if (document.activeElement === this.$searchInput) {
+      return;
+    }
     e.preventDefault();
 
     if (this.isOpened()) {
@@ -620,8 +648,11 @@ export class VirtualSelect {
 
   onToggleButtonPress(e) {
     if (e.type === 'keydown') {
+      // Allow default Tab navigation and other non-activation keys
+      if (e.code !== 'Enter' && e.code !== 'Space') {
+        return;
+      }
       e.preventDefault();
-      if (e.code !== 'Enter' && e.code !== 'Space') return;
     }
 
     const $target = e.target;
@@ -823,7 +854,7 @@ export class VirtualSelect {
     }
   }
 
-  afterRenderOptions(hasRenderedOnScroll = false) {
+  afterRenderOptions() {
     const visibleOptions = this.getVisibleOptions();
     const hasNoOptions = !this.options.length && !this.hasServerSearch;
     const hasNoSearchResults = !hasNoOptions && !visibleOptions.length;
@@ -852,11 +883,13 @@ export class VirtualSelect {
     this.setOptionsPosition();
     this.setOptionsTooltip();
 
-    if (document.activeElement !== this.$searchInput && hasRenderedOnScroll === false) {
-      const focusedOption = DomUtils.getElementsBySelector('.focused', this.$dropboxContainer)[0];
-      if (focusedOption !== undefined) {
-        focusedOption.focus();
-      }
+    if (document.activeElement !== this.$searchInput) {
+      setTimeout(() => {
+        const focusedOption = DomUtils.getElementsBySelector('.focused', this.$dropboxContainer)[0];
+        if (focusedOption !== undefined) {
+          focusedOption.focus();
+        }
+      }, 20);
     }
   }
 
@@ -868,7 +901,7 @@ export class VirtualSelect {
 
   afterSetSearchValue() {
     if (this.hasServerSearch) {
-      clearInterval(this.serverSearchTimeout);
+      clearTimeout(this.serverSearchTimeout);
 
       this.serverSearchTimeout = setTimeout(() => {
         this.serverSearch();
@@ -1539,7 +1572,7 @@ export class VirtualSelect {
     this.sortedOptions = sortedOptions;
   }
 
-  setVisibleOptions(isOnScrollUpdating = false) {
+  setVisibleOptions() {
     let visibleOptions = [...this.sortedOptions];
     const maxOptionsToShow = this.optionsCount * 2;
     const startIndex = this.getVisibleStartIndex();
@@ -1572,7 +1605,7 @@ export class VirtualSelect {
     this.visibleOptions = visibleOptions;
     // update number of visible options
     this.visibleOptionsCount = visibleOptions.length;
-    this.renderOptions(isOnScrollUpdating);
+    this.renderOptions();
   }
 
   setOptionsPosition(startIndex) {
@@ -2477,6 +2510,21 @@ export class VirtualSelect {
       return;
     }
 
+    // Return focus to wrapper only when no other meaningful element currently has focus
+    const active = document.activeElement;
+    const withinComponent =
+      (active && this.$wrapper.contains(active)) ||
+      (this.hasDropboxWrapper && active && this.$dropboxWrapper.contains(active));
+
+    const shouldRefocus = this.shouldFocusWrapperOnClose &&
+      VirtualSelect.lastInteractedInstance === this &&
+      !isSilent &&
+      (active === null || active === document.body || withinComponent);
+
+    if (shouldRefocus) {
+      this.$wrapper.focus();
+    }
+
     if (isSilent) {
       DomUtils.setStyle(this.$dropboxContainer, 'display', '');
     } else {
@@ -2517,21 +2565,6 @@ export class VirtualSelect {
 
     if (!isSilent) {
       DomUtils.dispatchEvent(this.$ele, 'afterClose');
-    }
-
-    // Return focus to wrapper only when no other meaningful element currently has focus
-    const active = document.activeElement;
-    const withinComponent =
-      (active && this.$wrapper.contains(active)) ||
-      (this.hasDropboxWrapper && active && this.$dropboxWrapper.contains(active));
-
-    const shouldRefocus = this.shouldFocusWrapperOnClose &&
-      VirtualSelect.lastInteractedInstance === this &&
-      !isSilent &&
-      (active === null || active === document.body || withinComponent);
-
-    if (shouldRefocus) {
-      this.$wrapper.focus();
     }
 
     // Reset for next close
@@ -3289,6 +3322,13 @@ export class VirtualSelect {
     if (this === VirtualSelect.lastInteractedInstance) {
       VirtualSelect.lastInteractedInstance = null;
     }
+
+    // Clear any pending server search timeout to prevent memory leaks
+    if (this.serverSearchTimeout) {
+      clearTimeout(this.serverSearchTimeout);
+      this.serverSearchTimeout = null;
+    }
+
     /** Remove all event listeners to prevent memory leaks and ensure proper cleanup */
     this.removeEvents();
 
