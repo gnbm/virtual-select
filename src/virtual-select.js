@@ -241,12 +241,12 @@ export class VirtualSelect {
 
     // eslint-disable-next-line no-trailing-spaces
     const html =
-      `<div id="vscomp-dropbox-container-${this.uniqueId}" role="listbox" class="${dropboxContainerClasses}">
+      `<div id="vscomp-dropbox-container-${this.uniqueId}" class="${dropboxContainerClasses}">
         <div class="vscomp-dropbox-container-top" aria-hidden="true" tabindex="-1">&nbsp;</div>
         <div class="${dropboxClasses}">
           <div class="vscomp-search-wrapper"></div>
 
-          <div class="vscomp-options-container">
+          <div class="vscomp-options-container" role="listbox" aria-labelledby="vscomp-ele-wrapper-${this.uniqueId}" >
             <div class="vscomp-options-loader"></div>
 
             <div class="vscomp-options-list">
@@ -287,6 +287,9 @@ export class VirtualSelect {
   }
 
   renderOptions() {
+    // Calculate ARIA metadata before rendering to ensure it's always up to date
+    this.calculateAriaMetadata();
+
     let html = '';
     const visibleOptions = this.getVisibleOptions();
     let checkboxHtml = '';
@@ -385,9 +388,18 @@ export class VirtualSelect {
         optionLabel = optionLabel.replace(searchRegex, '<mark>$1</mark>');
       }
 
+      // Add aria-setsize and aria-posinset for virtualized listbox accessibility
+      let ariaAttrs = '';
+      if (this.ariaSetSize > 0) {
+        ariaAttrs = `aria-setsize="${this.ariaSetSize}"`;
+        if (d.filteredIndex) {
+          ariaAttrs += ` aria-posinset="${d.filteredIndex}"`;
+        }
+      }
+
       html += `<div role="option" aria-selected="${isSelected}" id="vscomp-option-${uniqueId}-${index}"
           class="${optionClasses}" data-value="${d.value}" data-index="${index}" data-visible-index="${d.visibleIndex}"
-          tabindex=${tabIndexValue} ${groupIndexText} ${ariaDisabledText} ${ariaLabel}
+          tabindex=${tabIndexValue} ${groupIndexText} ${ariaDisabledText} ${ariaLabel} ${ariaAttrs}
         >
           ${leftSection}
           <span class="vscomp-option-text" ${optionTooltip}>
@@ -825,8 +837,7 @@ export class VirtualSelect {
     this.renderSearch();
     this.setEleStyles();
     this.setDropboxStyles();
-    this.setOptionsHeight();
-    this.setVisibleOptions();
+    this.setVisibleOptionsCount();
     this.setOptionsContainerHeight();
     this.addEvents();
     this.setEleProps();
@@ -1077,6 +1088,7 @@ export class VirtualSelect {
     this.optionsHeight = this.getOptionsHeight();
     this.uniqueId = this.getUniqueId();
     this.shouldFocusWrapperOnClose = true; // Initialize focus management property
+    this.ariaSetSize = 0;
   }
 
   /**
@@ -1888,6 +1900,64 @@ export class VirtualSelect {
     this.afterSetVisibleOptionsCount();
   }
 
+  /**
+   * Calculates ARIA metadata (aria-setsize and aria-posinset) for virtualized listbox accessibility.
+   * This method iterates through ALL filtered options (not just rendered ones) to calculate
+   * the correct position in the full filtered set. This ensures screen readers announce
+   * correct positions even when only a subset of options is rendered (e.g., "Option 50, 50 of 10001").
+   *
+   * Example: With 10,001 filtered options showing only 5 at a time:
+   * - All 10,001 options get filteredIndex values: 1, 2, 3, ..., 10001
+   * - ariaSetSize = 10001
+   * - When options 50-54 are rendered, they have filteredIndex: 50, 51, 52, 53, 54
+   * - Screen reader announces: "Option 50, 50 of 10001"
+   */
+  calculateAriaMetadata() {
+    let ariaSetSize = 0;
+    let filteredPosition = 0;
+    const optionsSource = this.sortedOptions && this.sortedOptions.length ? this.sortedOptions : this.options;
+
+    // Iterate through ALL options (not just rendered ones) to calculate positions in the full filtered set
+    optionsSource.forEach((d) => {
+      if (d.isCurrentNew) {
+        // eslint-disable-next-line no-param-reassign
+        d.filteredIndex = undefined;
+        return;
+      }
+
+      if (d.isVisible === true) {
+        const isSelectableGroupTitle = d.isGroupTitle && this.multiple && !this.disableOptionGroupCheckbox;
+        if (!d.isGroupTitle || isSelectableGroupTitle) {
+          filteredPosition += 1;
+          ariaSetSize += 1;
+          // eslint-disable-next-line no-param-reassign
+          d.filteredIndex = filteredPosition;
+        } else {
+          // eslint-disable-next-line no-param-reassign
+          d.filteredIndex = undefined;
+        }
+      } else {
+        // eslint-disable-next-line no-param-reassign
+        d.filteredIndex = undefined;
+      }
+    });
+
+    if (this.allowNewOption) {
+      const newOption = this.getNewOption();
+      if (newOption && newOption.isVisible === true) {
+        filteredPosition += 1;
+        ariaSetSize += 1;
+        // eslint-disable-next-line no-param-reassign
+        newOption.filteredIndex = filteredPosition;
+      } else if (newOption) {
+        // eslint-disable-next-line no-param-reassign
+        newOption.filteredIndex = undefined;
+      }
+    }
+
+    this.ariaSetSize = ariaSetSize;
+  }
+
   setOptionProp(index, key, value) {
     if (!this.options[index]) {
       return;
@@ -2531,6 +2601,8 @@ export class VirtualSelect {
       DomUtils.dispatchEvent(this.$ele, 'beforeClose');
       DomUtils.setAria(this.$wrapper, 'expanded', false);
       DomUtils.setAria(this.$wrapper, 'activedescendant', '');
+      // Also clear aria-activedescendant on the listbox container
+      DomUtils.setAria(this.$dropboxContainer, 'activedescendant', '');
     }
 
     if (this.dropboxPopover && !isSilent) {
@@ -3390,6 +3462,8 @@ export class VirtualSelect {
 
     if (isFocused) {
       DomUtils.setAria(this.$wrapper, 'activedescendant', $ele.id);
+      // Also set aria-activedescendant on the listbox container for better screen reader support
+      DomUtils.setAria(this.$dropboxContainer, 'activedescendant', $ele.id);
     }
   }
 

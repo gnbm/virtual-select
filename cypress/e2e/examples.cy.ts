@@ -58,6 +58,177 @@ describe('Open Get Started page for Dropdowns interaction test clicking outside'
 
 
 
+describe('Accessibility attributes - virtualized options metadata', () => {
+  const id = 'single-select';
+
+  it('exposes total list size and sequential positions without search', () => {
+    cy.open(id);
+
+    cy.getDropbox(null, id)
+      .find('[role="option"][aria-setsize]')
+      .first()
+      .as('firstOption');
+
+    cy.get('@firstOption')
+      .invoke('attr', 'aria-setsize')
+      .then((value) => {
+        const setSize = Number(value);
+        expect(Number.isNaN(setSize), 'aria-setsize should be a number').to.be.false;
+        expect(setSize, 'aria-setsize should be greater than zero').to.be.greaterThan(0);
+        cy.wrap(setSize).as('totalOptionsCount');
+      });
+
+    cy.get('@firstOption')
+      .invoke('attr', 'aria-posinset')
+      .then((value) => {
+        const position = Number(value);
+        expect(position, 'first visible option should be position 1').to.equal(1);
+      });
+
+    cy.getDropbox(null, id)
+      .find('[role="option"][aria-posinset]')
+      .last()
+      .invoke('attr', 'aria-posinset')
+      .then((value) => {
+        const lastPosition = Number(value);
+        expect(Number.isNaN(lastPosition), 'last option should report aria-posinset').to.be.false;
+        cy.wrap(lastPosition).as('initialLastPosition');
+      });
+
+    cy.getVs(id).scrollOptions(2000);
+    cy.wait(300);
+
+    cy.get('@initialLastPosition').then((initialLastPosition) => {
+      const initialPosition = Number(initialLastPosition);
+      cy.getDropbox(null, id)
+        .find('[role="option"][aria-posinset]')
+        .last()
+        .invoke('attr', 'aria-posinset')
+        .then((value) => {
+          const newLast = Number(value);
+          expect(newLast, 'last rendered option should advance after scrolling').to.be.greaterThan(initialPosition);
+        });
+    });
+
+    cy.get('body').click(10, 10);
+  });
+
+  it('updates aria-setsize and positions when filtering via search', () => {
+    cy.open(id).search('Option 1234');
+
+    cy.getDropbox(null, id)
+      .find('[role="option"][aria-setsize]')
+      .should('have.length.greaterThan', 0)
+      .first()
+      .as('filteredFirstOption');
+
+    cy.get('@filteredFirstOption')
+      .invoke('attr', 'aria-setsize')
+      .then((value) => {
+        const setSize = Number(value);
+        expect(Number.isNaN(setSize), 'filtered aria-setsize should be numeric').to.be.false;
+        expect(setSize, 'filtered aria-setsize should be greater than zero').to.be.greaterThan(0);
+      });
+
+    cy.get('@filteredFirstOption')
+      .invoke('attr', 'aria-posinset')
+      .then((value) => {
+        const position = Number(value);
+        expect(position, 'first filtered option should be position 1').to.equal(1);
+      });
+
+    cy.getDropbox(null, id)
+      .find('[role="option"][aria-posinset]')
+      .eq(1)
+      .invoke('attr', 'aria-posinset')
+      .then((value) => {
+        if (value) {
+          const position = Number(value);
+          expect(position, 'second filtered option should be position 2').to.equal(2);
+        }
+      });
+
+    cy.get('body').click(10, 10);
+    cy.reload();
+  });
+
+  it('has proper ARIA attributes on listbox and options container for screen reader navigation', () => {
+    cy.open(id);
+
+    // Cache references to relevant elements for repeated assertions
+    cy.getDropbox(null, id)
+      .find('.vscomp-options-container')
+      .should('exist')
+      .as('listboxContainer');
+
+    cy.getDropbox(null, id)
+      .parent('.vscomp-dropbox-container')
+      .should('exist')
+      .as('listboxRegion');
+
+    // Get the combobox wrapper ID for reference
+    cy.getVs(id)
+      .find('.vscomp-ele-wrapper')
+      .invoke('attr', 'id')
+      .as('comboboxId');
+
+    // Verify listbox container has correct role and aria-labelledby
+    cy.get('@comboboxId').then((comboboxId) => {
+      cy.get('@listboxContainer')
+        .should('have.attr', 'role', 'listbox')
+        .should('have.attr', 'aria-labelledby', comboboxId);
+    });
+
+    // Navigate to first option using keyboard (Down arrow from combobox)
+    cy.getVs(id).find('.vscomp-ele-wrapper').type('{downarrow}');
+    cy.wait(100); // Wait for focus to update
+
+    // Get first option and verify it's focused
+    cy.getDropbox(null, id)
+      .find('[role="option"]')
+      .first()
+      .as('firstOption')
+      .should('have.class', 'focused');
+
+    // Get the ID of the first option
+    cy.get('@firstOption')
+      .invoke('attr', 'id')
+      .as('firstOptionId');
+
+    // Verify aria-activedescendant is set on listbox container when option is focused
+    cy.get('@firstOptionId').then((firstOptionId) => {
+      cy.get('@listboxRegion')
+        .should('have.attr', 'aria-activedescendant', firstOptionId);
+    });
+
+    // Navigate to second option using arrow key
+    cy.get('@firstOption').type('{downarrow}');
+    cy.wait(100); // Wait for focus to update
+
+    // Get second option
+    cy.getDropbox(null, id)
+      .find('[role="option"]')
+      .eq(1)
+      .as('secondOption')
+      .should('have.class', 'focused');
+
+    // Get the ID of the second option
+    cy.get('@secondOption')
+      .invoke('attr', 'id')
+      .as('secondOptionId');
+
+    // Verify aria-activedescendant updates to second option
+    cy.get('@secondOptionId').then((secondOptionId) => {
+      cy.get('@listboxRegion')
+        .should('have.attr', 'aria-activedescendant', secondOptionId);
+    });
+
+    cy.get('body').click(10, 10);
+  });
+});
+
+
+
 /**
  * Arrow key behavior tests for search input
  * Tests the fix that allows normal cursor movement in search input
